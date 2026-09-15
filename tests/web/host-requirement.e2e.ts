@@ -96,11 +96,15 @@ describe.skipIf(!HAS_DSH).sequential('web e2e: the fresh-install host-version pr
   const B = 'dshm-e2e-fixture-b'
 
   beforeAll(async () => {
-    // 1.0.0 installable; 2.0.0 claims a far-future host.
+    // 1.0.0 installable; 2.0.0 claims a far-future host — and here 2.0.0 IS
+    // `latest`, because this block never moves the tag: the first case has to
+    // meet the refusal on a plain fresh install, and the forced one then lands
+    // 2.0.0. (The block above leaves 1.0.0 as `latest` and calls publish() to
+    // move it, because there the refusal belongs to the UPDATE path.)
     scaffold = await launchMarketScaffold({
       fixtures: [
-        { dir: 'fixture-a', version: '2.0.0', manifest: { engines: { dsh: '>=99.0.0' } } },
-        { dir: 'fixture-a', version: '1.0.0' },
+        { dir: 'fixture-b', version: '1.0.0' },
+        { dir: 'fixture-b', version: '2.0.0', manifest: { engines: { dsh: '>=99.0.0' } } },
       ],
     })
     base = scaffold.baseUrl
