@@ -151,6 +151,27 @@ function sourceKey(source: CatalogSource): string {
   return source.kind === 'npm' ? `npm:${source.registry}/${source.pkg}` : `url:${source.url}`
 }
 
+/**
+ * One catalog source's failure, kept so the message can name every source
+ * that was tried and not only the last one (#750).
+ */
+export interface CatalogSourceFailure {
+  /** The source as a bug report should name it: the URL that was requested. */
+  source: string
+  /** What that source last said. */
+  error: unknown
+}
+
+/** A source named the way a person reading the failure would name it. */
+function sourceLabel(source: CatalogSource): string {
+  return source.kind === 'npm' ? `${source.registry}/${source.pkg}` : source.url
+}
+
+/** The text of a thrown value, for a message a person will read. */
+function reasonOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /** A parsed catalog, or a thrown explanation of why it is not one. */
 function asRegistry(value: unknown): Registry {
   const data = value as Registry
@@ -195,14 +216,21 @@ export function forgetCatalog(): void {
  */
 export async function loadRegistry(region: Region = activeRegion()): Promise<Registry> {
   const started = Date.now()
-  let last: unknown
   let attempts = 0
+  // One entry per source, in the order they were tried. This used to be a
+  // single `last` written from inside the retry loop below, so it held the
+  // LAST source's LAST error: the source that failed first was overwritten
+  // by its fallback and never appeared in the message at all (#750). The
+  // reader was left with the fallback's timeout reported as though it were
+  // the cause — which is how the issue behind this was filed.
+  const failures: CatalogSourceFailure[] = []
   // Sources in order, each a fallback for the one before it. The catalog is
   // the FIRST request the market makes, so a mirror that has gone down must
   // mean a slow market rather than an empty one — the list ends at the
   // address that has always worked.
   for (const source of routesFor(region).catalog) {
     const key = sourceKey(source)
+    let last: unknown
     // Two attempts each. A catalog fetch crossing a long, lossy path fails
     // transiently often enough that one retry is worth more than the second
     // or two it costs — and with nothing behind this call any more, a
@@ -251,8 +279,11 @@ export async function loadRegistry(region: Region = activeRegion()): Promise<Reg
         last = error
       }
     }
+    // After both attempts, not inside them: one line per source is what the
+    // message is for.
+    failures.push({ source: sourceLabel(source), error: last })
   }
-  throw new Error(describeFetchFailure(last, Date.now() - started, attempts))
+  throw new Error(describeFetchFailure(failures, Date.now() - started, attempts))
 }
 
 /**
@@ -265,11 +296,27 @@ export async function loadRegistry(region: Region = activeRegion()): Promise<Reg
  * proxy this process cannot use — and Node's `fetch` ignores HTTP_PROXY
  * entirely (measured on Node 25), so a machine whose only route out is a
  * proxy fails here every time while every other tool on it works.
+ *
+ * Every source is named with its own reason. Reporting only the last one made
+ * the message point at the wrong host: the sources fail for different
+ * reasons, and the first one is usually the one to act on (#750).
+ *
+ * One line, not several. The same string is exported to the log, where
+ * `sanitize()` strips control characters — the newline included — so a
+ * message built from several lines would arrive there glued together with no
+ * separator between its parts.
  */
-export function describeFetchFailure(error: unknown, elapsedMs: number, attempts = 2): string {
-  const reason = error instanceof Error ? error.message : String(error)
+export function describeFetchFailure(
+  failures: readonly CatalogSourceFailure[],
+  elapsedMs: number,
+  attempts = 2,
+): string {
+  const seconds = String(Math.round(elapsedMs / 1000))
+  const parts = [
+    `no catalog source answered (${seconds}s, ${String(attempts)} attempts)`,
+    ...failures.map(failure => `${failure.source} — ${reasonOf(failure.error)}`),
+  ]
   const proxy = configuredProxy()
-  const parts = [`${reason} (${String(Math.round(elapsedMs / 1000))}s, ${String(attempts)} attempts)`]
   if (proxy !== null) {
     parts.push(`tried through the configured proxy ${proxy.replace(/\/\/[^@]*@/u, '//***@')}`)
   }

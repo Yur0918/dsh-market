@@ -199,8 +199,17 @@ describe('loadRegistry', () => {
     // the market puts on screen and what the log export ships. "The
     // operation was aborted due to timeout" on its own — the exact text a
     // reporter sent us — cannot tell a slow link from a blocked one.
+    //
+    // One line, deliberately: the log export runs the same string through
+    // `sanitize()`, which strips control characters including the newline,
+    // so a message built from several lines would arrive there glued
+    // together with no separator at all.
     scriptedFetch(new Error('The operation was aborted due to timeout'))
-    await expect(loadRegistry()).rejects.toThrow(/aborted due to timeout.*\ds, 2 attempts/s)
+    const failure = await loadRegistry().catch((error: unknown) => error as Error)
+    expect(failure.message).toMatch(/no catalog source answered \(\ds, 2 attempts\)/)
+    expect(failure.message).toContain('https://awesome-dsh-plugin.com/plugins.json')
+    expect(failure.message).toContain('aborted due to timeout')
+    expect(failure.message).not.toContain('\n')
   })
 })
 
@@ -245,9 +254,27 @@ describe('loadRegistry download regions', () => {
     expect(stub).toHaveBeenCalledTimes(3)
   })
 
-  it('reports every attempt it made when the whole list fails', async () => {
-    byUrl([[/./, new Error('fetch failed')]])
-    await expect(loadRegistry('china')).rejects.toThrow(/4 attempts/)
+  it('reports every attempt it made when the whole list fails (#750)', async () => {
+    // Each source fails for its OWN reason, and the message has to carry all
+    // of them. It used to carry the last source's last error and nothing
+    // else, so the source that failed first — the one a reader should look
+    // at — was overwritten by the fallback's and never appeared. A report of
+    // this failure then named the fallback's timeout as if it were the
+    // cause, which is how the issue behind this test was filed.
+    const stub = byUrl([
+      [/mirrors\.cloud\.tencent\.com/, new Error('HTTP 000 from the mirror')],
+      [/awesome-dsh-plugin\.com/, new Error('The operation was aborted due to timeout')],
+    ])
+    const failure = await loadRegistry('china').catch((error: unknown) => error as Error)
+
+    expect(stub).toHaveBeenCalledTimes(4) // two attempts at each source
+    expect(failure.message).toMatch(/4 attempts/)
+    // Source and reason paired: a list of sources followed by a list of
+    // reasons would say nothing about which one belongs to which.
+    const mirror = 'https://mirrors.cloud.tencent.com/npm/dsh-plugin-catalog'
+    const origin = 'https://awesome-dsh-plugin.com/plugins.json'
+    expect(failure.message).toContain(`${mirror} — HTTP 000 from the mirror`)
+    expect(failure.message).toContain(`${origin} — The operation was aborted due to timeout`)
   })
 
   it('never sends one origin the validator another one issued', async () => {
@@ -356,32 +383,53 @@ describe('loadRegistry revalidation', () => {
 })
 
 describe('describeFetchFailure', () => {
+  /** One source's failure, in the shape `loadRegistry` hands over. */
+  const failed = (source: string, error: unknown) => ({ source, error })
+
   it('names the proxy it went through, because that is the surprising part', () => {
     // Node's global fetch ignores HTTP_PROXY entirely, so before this
     // version a machine whose only route out was a proxy failed here every
     // time while every other tool on it worked. Whether the proxy was used
     // is the first thing anyone needs to know from the message.
     process.env.HTTPS_PROXY = 'http://127.0.0.1:7897'
-    expect(describeFetchFailure(new Error('timeout'), 15_000))
-      .toBe('timeout (15s, 2 attempts) · tried through the configured proxy http://127.0.0.1:7897')
+    const origin = 'https://awesome-dsh-plugin.com/plugins.json'
+    expect(describeFetchFailure([failed(origin, new Error('timeout'))], 15_000))
+      .toBe(`no catalog source answered (15s, 2 attempts) · ${origin} — timeout`
+        + ' · tried through the configured proxy http://127.0.0.1:7897')
+  })
+
+  it('names every source, in the order they were tried', () => {
+    // The order is what makes the list readable: the first entry is the
+    // route the user's region prefers, the last is the escape hatch, so
+    // "which one actually broke" is answered by reading from the left.
+    const message = describeFetchFailure([
+      failed('https://mirrors.cloud.tencent.com/npm/dsh-plugin-catalog', new Error('HTTP 000')),
+      failed('https://awesome-dsh-plugin.com/plugins.json', new Error('The operation was aborted due to timeout')),
+    ], 31_000, 4)
+    expect(message).toContain('no catalog source answered (31s, 4 attempts)')
+    expect(message.indexOf('mirrors.cloud.tencent.com')).toBeLessThan(message.indexOf('awesome-dsh-plugin.com'))
+    expect(message).toContain('— HTTP 000')
+    expect(message).toContain('— The operation was aborted due to timeout')
   })
 
   it('says nothing about a proxy when there is none', () => {
-    expect(describeFetchFailure(new Error('timeout'), 3000)).toBe('timeout (3s, 2 attempts)')
+    expect(describeFetchFailure([failed('mirror/npm/pkg', new Error('timeout'))], 3000))
+      .toBe('no catalog source answered (3s, 2 attempts) · mirror/npm/pkg — timeout')
   })
 
   it('redacts credentials embedded in the proxy URL', () => {
     // Users paste this message into issues. A corporate proxy URL routinely
     // carries a domain login, and it would go straight into a public tracker.
     process.env.HTTPS_PROXY = 'http://alice:hunter2@proxy.corp.example:8080'
-    const message = describeFetchFailure(new Error('ECONNREFUSED'), 1000)
+    const message = describeFetchFailure([failed('mirror/npm/pkg', new Error('ECONNREFUSED'))], 1000)
     expect(message).toContain('//***@proxy.corp.example:8080')
     expect(message).not.toContain('hunter2')
     expect(message).not.toContain('alice')
   })
 
   it('survives something thrown that is not an Error', () => {
-    expect(describeFetchFailure('just a string', 0)).toBe('just a string (0s, 2 attempts)')
+    expect(describeFetchFailure([failed('mirror/npm/pkg', 'just a string')], 0))
+      .toBe('no catalog source answered (0s, 2 attempts) · mirror/npm/pkg — just a string')
   })
 })
 
