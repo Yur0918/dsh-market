@@ -1,3 +1,5 @@
+> **本仓库为学习用途的上游 fork，非本人作品。** / Learning fork of an upstream project; not my work.
+
 <p align="center">
   <img src="assets/logo.svg" width="96" alt="dsh-market logo">
 </p>
