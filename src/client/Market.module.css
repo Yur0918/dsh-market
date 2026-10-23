@@ -11,9 +11,11 @@
    right says which section — the host's pageHead already carries the name, so
    repeating it as a heading was a third title for the same thing. */
 .headTop{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;min-width:0}
-.headTop > .sub{min-width:0}
-.title{font-size:14px;line-height:20px;font-weight:600;margin:0;white-space:nowrap;color:var(--dsw-alias-label-primary,#1f2328)}
-.sub{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8b93a1);margin:0}
+/* The sentence follows the name and is allowed to wrap: it is the one piece of
+   prose in the header, and truncating it would say less than wrapping does. */
+.headTop > .titleRow > .sub{max-width:100%}
+.title{font-size:15px;line-height:22px;font-weight:600;margin:0;white-space:nowrap;color:var(--dsw-alias-label-primary,#1f2328)}
+.sub{flex:1 1 auto;min-width:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8b93a1);margin:0}
 .sidebarTip{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#5c6570)}
 .submitLink{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8b93a1);text-decoration:none;white-space:nowrap}
 .submitLink:hover{color:var(--dsw-alias-brand-primary,#4f6ef7);text-decoration:underline}
@@ -407,7 +409,7 @@
    a reading copy, not a surface, and must not steal the pointer from the card. */
 .introPanel{
   position:fixed;z-index:60;
-  box-sizing:border-box;padding:6px 16px 14px;overflow:hidden;
+  box-sizing:border-box;padding:10px 16px 14px;overflow:hidden;
   border:.5px solid var(--dsw-alias-settings-card-stroke,var(--dsw-alias-border-l4,#00000029));
   border-top:none;
   border-radius:0 0 var(--dsw-radius-xl,20px) var(--dsw-radius-xl,20px);
@@ -423,6 +425,10 @@
 }
 
 
+.introHead{display:flex;align-items:baseline;gap:8px;min-width:0;margin-bottom:6px}
+.introName{color:var(--dsw-alias-label-primary,#1f2328);font-size:14px;line-height:20px;font-weight:600;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.introOwner{flex-shrink:0;color:var(--dsw-alias-label-tertiary,#8b93a1);font-size:12px;line-height:18px}
 .introBody{margin:0;overflow:hidden}
 @keyframes dshmIntroIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.introPanel{animation:none}}
@@ -496,7 +502,7 @@
 .titleRow{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px}
 /* The update buttons wrap as one group: in a narrow settings panel they
    drop below the heading together instead of squeezing it into two lines. */
-.titleActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;margin-left:auto}
+.titleActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;margin-left:auto;flex-shrink:0}
 .titleActions:empty{display:none}
 .titleActions>*{white-space:nowrap;flex-shrink:0}
 /* Sits beside the heading so a screenshot of the page carries the
@@ -747,13 +753,22 @@
    row is the anchor instead, so the panel hangs from the container's right
    edge wherever the entry ends up. */
 .opWrap{display:inline-flex;flex-shrink:0;margin-bottom:6px}
-.opEntry{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:12px;
-         padding:4px 10px;border-radius:7px;cursor:pointer;position:relative;white-space:nowrap;
+.opEntry{display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:12px;
+         height:28px;padding:0 7px 0 10px;border-radius:8px;cursor:pointer;position:relative;white-space:nowrap;
          color:var(--dsw-alias-label-primary,#1f2328);
          background:var(--dsw-alias-bg-layer-1,#fff);
-         border:1px solid var(--dsw-alias-border-l3,#d9dde3)}
-/* Idle is not news: no border, no fill, nothing competing with the tabs. */
-.opEntryQuiet{border-color:transparent;background:transparent;color:var(--dsw-alias-label-secondary,#6b7280)}
+         border:.5px solid var(--dsw-alias-border-l3,#d9dde3);
+         transition:background-color 120ms ease,color 120ms ease,border-color 120ms ease}
+/* Idle used to be bare text, and bare text at the end of a tab row reads as a
+   caption: it is the only way into the task list, and it looked like it could
+   not be clicked. Idle is a quiet chip on the host's grouped surface instead —
+   still subordinate to the tabs, but visibly a control. */
+.opEntryQuiet{background:var(--dsw-alias-bg-module-platform,#f4f5f7);color:var(--dsw-alias-label-secondary,#5c6570)}
+.opEntry:hover{color:var(--dsw-alias-label-primary,#1f2328);border-color:var(--dsw-alias-border-l2,#e5e7eb);
+               background:var(--dsw-alias-bg-module-platform,#f4f5f7)}
+.opChevron{display:inline-flex;flex-shrink:0;color:var(--dsw-alias-label-tertiary,#8b93a1);
+           transition:transform 140ms cubic-bezier(.16,1,.3,1)}
+.opChevronOpen{transform:rotate(180deg)}
 .opEntryAlert{border-color:var(--dsw-alias-state-error-primary,#dc2626);color:var(--dsw-alias-state-error-primary,#dc2626)}
 .opDot{position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:99px;
        background:var(--dsw-alias-state-error-primary,#dc2626)}
@@ -1104,6 +1119,9 @@
 .commentsLink:hover{color:var(--dsw-alias-brand-primary,#4f6ef7)}
 .footActions{display:inline-flex;align-items:center;gap:8px;flex-shrink:0}
 .favoriteBtn{background:none;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:center;color:var(--dsw-alias-label-secondary,#9ca3af)}
+/* The click gesture is a ribbon being tugged: scale from the top edge, so the
+   mark stretches downward and snaps back rather than growing from its middle. */
+.favoriteMark{display:block;transform-box:fill-box;transform-origin:50% 0}
 .favoriteBtn:hover{color:var(--dsw-alias-brand-primary,#4f6ef7)}
 .favoriteOn{color:var(--dsw-alias-brand-primary,#4f6ef7)}
 .cardMore{background:none;border:0;padding:0 2px;cursor:pointer;font:inherit;font-size:14px;line-height:16px;letter-spacing:1px;color:var(--dsw-alias-label-secondary,#9ca3af)}

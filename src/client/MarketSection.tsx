@@ -3,7 +3,7 @@
  * /dsh-market/* host routes, with install/update/uninstall flows and the
  * pending-restart bookkeeping in sessionStorage.
  */
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Button,
@@ -920,29 +920,40 @@ function useMediaWide(): boolean {
 /**
  * Description + screenshots, and the introduction's reading view.
  *
- * The card clamps its description to five lines, and the card itself is a
- * `.map()` body with no hooks of its own — so this wrapper measures the clamp
- * it holds, and only when something is actually hidden does hovering reveal
- * the whole text.
+ * The card itself is a `.map()` body with no hooks of its own, so the peek that
+ * needs to know when a pointer is resting on a card lives here.
+ *
+ * It is open to any card that has an introduction — not only to the ones whose
+ * five-line clamp cuts text off. That gate was the first design, and measured
+ * on this catalog it left the feature invisible: at 1280px, two cards out of
+ * twenty-eight are clipped, because most descriptions are two or three lines.
+ * For the other twenty-six it looked broken, which is a worse outcome than a
+ * peek that mostly confirms what the card already says.
  *
  * The reveal is a fixed-position panel rather than something inside the card:
  * the space a card can give back is whatever its screenshots happen to occupy,
  * and a card without screenshots has none — measured on this catalog, the
  * first attempt showed exactly the same five lines, just cut at the box edge.
- * The panel is pointer-events:none, so it can never take the pointer from the
- * card underneath it.
+ * It is pointer-events:none, so it can never take the pointer from the card
+ * underneath it, and it starts below the title row so the name and the install
+ * button stay visible and clickable while it is open.
  */
-function CardBody({ text, children }: { text: string; children: ReactNode }) {
+function CardBody({ text, name, owner, children }: {
+  text: string
+  name: string
+  owner?: string
+  children: ReactNode
+}) {
   const ref = useRef<HTMLDivElement>(null)
-  const [clipped, setClipped] = useState(false)
+  const [hasText, setHasText] = useState(false)
   const [anchor, setAnchor] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null)
   const timer = useRef<number | null>(null)
   useLayoutEffect(() => {
     const host = ref.current
     if (host === null) return
-    const desc = host.querySelector<HTMLElement>(`.${css.descClamp}`)
-    if (desc === null) { setClipped(false); return }
-    const measure = () => setClipped(desc.scrollHeight > desc.clientHeight + 1)
+    const desc = host.querySelector<HTMLElement>(`.${css.descClamp}`) ?? host.querySelector<HTMLElement>(`.${css.desc}`)
+    if (desc === null) { setHasText(false); return }
+    const measure = () => setHasText((desc.textContent ?? '').trim().length > 0)
     measure()
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measure)
@@ -955,7 +966,7 @@ function CardBody({ text, children }: { text: string; children: ReactNode }) {
   }, [])
   const open = useCallback(() => {
     const host = ref.current
-    if (host === null || !clipped) return
+    if (host === null || !hasText) return
     if (timer.current !== null) window.clearTimeout(timer.current)
     // Long enough that sweeping across the grid does not flash a panel per card.
     timer.current = window.setTimeout(() => {
@@ -973,8 +984,8 @@ function CardBody({ text, children }: { text: string; children: ReactNode }) {
         width: card.width,
         maxHeight: Math.max(120, Math.min(window.innerHeight * 0.6, room)),
       })
-    }, 320)
-  }, [clipped])
+    }, 420)
+  }, [hasText])
   useEffect(() => {
     const card = ref.current?.parentElement
     if (card === null || card === undefined) return undefined
@@ -999,6 +1010,10 @@ function CardBody({ text, children }: { text: string; children: ReactNode }) {
       {children}
       {anchor !== null && createPortal(
         <div className={css.introPanel} style={{ left: anchor.left, top: anchor.top, width: anchor.width, maxHeight: anchor.maxHeight }} aria-hidden="true">
+          <div className={css.introHead}>
+            <span className={css.introName}>{name}</span>
+            {owner !== undefined && owner !== '' && <span className={css.introOwner}>{owner}</span>}
+          </div>
           <p className={css.introBody}>{text}</p>
         </div>,
         document.body,
@@ -1340,9 +1355,64 @@ function GithubRepoMark({ size = 12, className }: { size?: number; className?: s
 
 /** Bookmark toggle on catalog cards (#414). Outline when off, filled when on —
  * deliberately not a star, which the byline already uses for GitHub popularity. */
-function BookmarkMark({ size = 14, filled = false, className }: { size?: number; filled?: boolean; className?: string }) {
+/**
+ * The bookmark, with the click felt rather than only seen.
+ *
+ * Filling the mark is the state; the pop is what makes it read as something
+ * the reader did. It is a bookmark, so the mark is pulled down from its top
+ * edge and snaps back — a ribbon tugged and released, not a checkbox ticking.
+ *
+ * Web Animations rather than a class toggled through React state: a second
+ * click has to restart the gesture, and "set a flag, clear it on a timer"
+ * either coalesces the two renders or leaves the flag set when the click
+ * lands mid-animation. Each call here owns its own animation object.
+ *
+ * `prefers-reduced-motion` skips the gesture; the fill still changes, so the
+ * action is never silent.
+ */
+function FavoriteButton({ filled, label, onToggle }: { filled: boolean; label: string; onToggle: () => void }) {
+  const markRef = useRef<SVGSVGElement>(null)
+  return (
+    <Tooltip label={label} side="top">
+      <button
+        type="button"
+        className={filled ? `${css.favoriteBtn} ${css.favoriteOn}` : css.favoriteBtn}
+        aria-pressed={filled}
+        aria-label={label}
+        onClick={() => {
+          onToggle()
+          const el = markRef.current
+          if (el === null || typeof el.animate !== 'function') return
+          if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) return
+          // Per-segment easing, not one curve over the whole gesture: a spring
+          // easing on the whole timeline reaches the stretch keyframe in the
+          // first few frames and spends the rest of the time settling, which
+          // measured as a peak of 1.12 instead of the 1.42 asked for.
+          el.animate([
+            { transform: 'scaleY(1) translateY(0)', easing: 'cubic-bezier(.32,.72,.42,1)' },
+            { transform: 'scaleY(1.42) translateY(1px)', offset: 0.18, easing: 'cubic-bezier(.42,0,.58,1)' },
+            { transform: 'scaleY(.84) translateY(-1px)', offset: 0.42, easing: 'cubic-bezier(.3,.75,.5,1)' },
+            { transform: 'scaleY(1.1) translateY(.4px)', offset: 0.62, easing: 'cubic-bezier(.3,.75,.5,1)' },
+            { transform: 'scaleY(.96) translateY(0)', offset: 0.8, easing: 'ease-out' },
+            { transform: 'scaleY(1) translateY(0)' },
+          ], { duration: 460 })
+        }}
+      >
+        <BookmarkMark filled={filled} className={css.favoriteMark} markRef={markRef} />
+      </button>
+    </Tooltip>
+  )
+}
+
+function BookmarkMark({ size = 14, filled = false, className, markRef }: {
+  size?: number
+  filled?: boolean
+  className?: string
+  markRef?: Ref<SVGSVGElement>
+}) {
   return (
     <svg
+      ref={markRef}
       width={size}
       height={size}
       viewBox="0 0 16 16"
@@ -5416,22 +5486,13 @@ export function MarketSection(props: MarketSectionProps) {
       ? data?.plugins.find(r => r.name === p.replacement)
       : undefined
 
-  const renderFavoriteControl = (url: string) => {
-    const favorited = favoriteUrlSet.has(url)
-    return (
-      <Tooltip label={favorited ? t('favoriteRemove') : t('favoriteAdd')} side="top">
-        <button
-          type="button"
-          className={favorited ? `${css.favoriteBtn} ${css.favoriteOn}` : css.favoriteBtn}
-          aria-pressed={favorited}
-          aria-label={favorited ? t('favoriteRemove') : t('favoriteAdd')}
-          onClick={() => toggleFavorite(url)}
-        >
-          <BookmarkMark filled={favorited} />
-        </button>
-      </Tooltip>
-    )
-  }
+  const renderFavoriteControl = (url: string) => (
+    <FavoriteButton
+      filled={favoriteUrlSet.has(url)}
+      label={favoriteUrlSet.has(url) ? t('favoriteRemove') : t('favoriteAdd')}
+      onToggle={() => toggleFavorite(url)}
+    />
+  )
 
   const renderPluginMenu = (plugin: RegistryPlugin, key = plugin.url) => {
     const aliases = blockAliases(plugin, matchInstalledName(plugin, installed, repoIdentities, data?.plugins, repoHints))
@@ -5825,7 +5886,7 @@ export function MarketSection(props: MarketSectionProps) {
                       )}
           </div>
         </div>
-        <CardBody text={desc}>
+        <CardBody text={desc} name={pluginName(p.name, p.npm)} owner={p.owner}>
         <CardDesc text={desc} t={t} />
         <CardShot plugin={p} onOpen={openLightbox} />
         {p.deprecated === true && (
@@ -6266,16 +6327,17 @@ export function MarketSection(props: MarketSectionProps) {
     >
       <div className={css.head}>
         <div className={css.headTop}>
-        <p className={css.sub}>{t('subtitle')}</p>
         <div className={css.titleRow}>
           <MarketLogo size={18} ambient style={{ flexShrink: 0 }} />
           <h2 className={css.title}>{t('nav')}</h2>
+          <p className={css.sub}>{t('subtitle')}</p>
+          </div>
+          <div className={css.titleActions}>
           {/* A quiet pointer back to the project — most visitors reach the
               market through a client that embeds it, with no other way to
               find the repo it came from. */}
           <a className={css.repoLink} href="https://github.com/dsh-market/dsh-market" target="_blank" rel="noreferrer" title="dsh-market · GitHub">dsh-market</a>
           {version !== null && <span className={css.version} title={t('versionHint')}>v{version}</span>}
-          <div className={css.titleActions}>
           <a className={css.submitLink} href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md" target="_blank" rel="noreferrer">{t('submitPlugin')}</a>
           <Button
             variant="ghost"
@@ -6319,7 +6381,6 @@ export function MarketSection(props: MarketSectionProps) {
             >{t('ignoreAllUpdateNotices')}</Button>
           )}
           </div>
-        </div>
         </div>
         {showSidebarTip && (
           <div className={css.sidebarTip}>
