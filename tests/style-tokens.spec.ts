@@ -123,12 +123,17 @@ describe('page-level cards wear the host card chrome', () => {
  * mark is the only signal that something is happening, so it keeps breathing.
  */
 /**
- * Every rule in the file, with selector LISTS split apart.
+ * Every rule in the file, with selector LISTS split apart, over the stylesheet
+ * with its comments removed.
  *
  * `RULES` above keeps one selector per entry and so cannot see `.a,.b{...}`
- * from the `.a` side — which is exactly how the mark's halves are declared.
+ * from the `.a` side — which is exactly how the mark's halves are declared. The
+ * comments have to go first: the rule text is everything since the last `}`,
+ * so a comment sitting directly above a rule is read as part of its selector
+ * and the rule silently disappears from this scan.
  */
-const BLOCKS = [...CSS.matchAll(/([^{}]+)\{([^{}]*)\}/gu)].map(match => ({
+const CSS_WITHOUT_COMMENTS = CSS.replace(/\/\*[\s\S]*?\*\//gu, '')
+const BLOCKS = [...CSS_WITHOUT_COMMENTS.matchAll(/([^{}]+)\{([^{}]*)\}/gu)].map(match => ({
   selectors: match[1]!.split(',').map(selector => selector.trim().replace(/^\./u, '')),
   body: match[2]!,
 }))

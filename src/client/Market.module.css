@@ -559,7 +559,11 @@
    at the ambient 2.8s that rest reads as stuck. Only the pace differs; phases,
    geometry and curve are shared, so the two forms cannot drift apart in shape. */
 .logoMark .logoCell,.logoMark .logoPlug{--dshm-cycle:2s}
-.logoCell{animation:dshmMarkWave var(--dshm-cycle) cubic-bezier(.4,0,.2,1) infinite;animation-delay:calc(var(--dshm-wave,0) * 110ms)}
+/* The cell's place on the diagonal, set per cell from market-mark.ts. Declared
+   here as well, because the stylesheet is where it is read: a variable that
+   exists only as an inline style is indistinguishable from a host variable that
+   does not exist, which is what tests/client/host-theme-vars.spec.ts guards. */
+.logoCell{--dshm-wave:0;animation:dshmMarkWave var(--dshm-cycle) cubic-bezier(.4,0,.2,1) infinite;animation-delay:calc(var(--dshm-wave) * 110ms)}
 .logoPlug,.logoPlugAmbient{transform-box:fill-box;transform-origin:50% 50%;animation:dshmMarkPlug var(--dshm-cycle) cubic-bezier(.4,0,.2,1) infinite}
 /* The dip is short on purpose. A long one (a quarter of the cycle, which is
    what a plain "breathing" loop wants) leaves five of the eight cells below
