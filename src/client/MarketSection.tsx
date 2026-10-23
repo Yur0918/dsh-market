@@ -6146,6 +6146,15 @@ export function MarketSection(props: MarketSectionProps) {
           <a className={css.repoLink} href="https://github.com/dsh-market/dsh-market" target="_blank" rel="noreferrer" title="dsh-market · GitHub">dsh-market</a>
           {version !== null && <span className={css.version} title={t('versionHint')}>v{version}</span>}
           <div className={css.titleActions}>
+          <a className={css.submitLink} href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md" target="_blank" rel="noreferrer">{t('submitPlugin')}</a>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={css.exportLogBtn}
+            icon={<IconDownloadOutline16 size={14} />}
+            disabled={exportState === 'busy'}
+            onClick={doExportLog}
+          >{exportState === 'busy' ? t('exportingLog') : t('exportLog')}</Button>
           {(() => {
             const self = installed['dshmarket'] !== undefined ? 'dshmarket' : 'dsh-market'
             const status = updates[self]
@@ -6202,10 +6211,7 @@ export function MarketSection(props: MarketSectionProps) {
             {sidebarTipError !== null && <span>{sidebarTipError}</span>}
           </div>
         )}
-        <div className={css.sub}>
-          <span>{t('subtitle')}</span>
-          <a className={css.submitLink} href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md" target="_blank" rel="noreferrer">{t('submitPlugin')}</a>
-        </div>
+        <p className={css.sub}>{t('subtitle')}</p>
         <div className={css.tabs}>
           <button className={tab === 'discover' ? `${css.tab} ${css.on}` : css.tab} onClick={() => setTab('discover')}>{t('tabDiscover')}</button>
           {themeSnap !== null && <button className={tab === 'themes' ? `${css.tab} ${css.on}` : css.tab} onClick={() => setTab('themes')}>{t('tabThemes')}</button>}
@@ -6263,14 +6269,6 @@ export function MarketSection(props: MarketSectionProps) {
               })
             }}
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            className={css.exportLogBtn}
-            icon={<IconDownloadOutline16 size={14} />}
-            disabled={exportState === 'busy'}
-            onClick={doExportLog}
-          >{exportState === 'busy' ? t('exportingLog') : t('exportLog')}</Button>
         </div>
         {/* Backup & Restore and Diagnostics sit under Advanced rather than as
             their own top-level tabs — most users never need either, and having
@@ -6706,6 +6704,18 @@ export function MarketSection(props: MarketSectionProps) {
                     <div className={css.stickyHead}>
                     <div className={css.tabSearchRow}>
                       <SearchInput key="discover" resetToken={discoverSearchReset} className={css.tabSearch} placeholder={t('searchPh')} value={q} onCommit={setQ} t={t} />
+                      <FilterMenu
+                        sortField={sortField}
+                        sortDir={sortDir}
+                        timeRange={timeRange}
+                        hostVersion={hostVersion}
+                        compatibleWithHost={compatibleWithHost}
+                        onSortField={setSortField}
+                        onSortDir={setSortDir}
+                        onTimeRange={setTimeRange}
+                        onCompatibleWithHost={setCompatibleWithHost}
+                        t={t}
+                      />
                     </div>
                     <div className={css.cats}>
                       <div className={css.catsRow}>
@@ -6738,33 +6748,21 @@ export function MarketSection(props: MarketSectionProps) {
                                   onClick={() => setCat(id)}
                                 >{(data.categories[id] && (data.categories[id]![lang] || data.categories[id]!.en)) || id}</Pill>
                               ))}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className={css.catsToggle}
-                                icon={catsExpanded ? <IconChevronUpOutline14 size={14} /> : <IconChevronDownOutline14 size={14} />}
-                                aria-label={catsExpanded ? t('catsLess') : t('catsMore')}
-                                onClick={() => {
-                                  const next = !catsExpanded
-                                  if (catsStuck) setStuckExpanded(next)
-                                  setCatsOpen(next)
-                                }}
-                              />
                             </>
                           )
                         })()}
                       </div>
-                      <FilterMenu
-                        sortField={sortField}
-                        sortDir={sortDir}
-                        timeRange={timeRange}
-                        hostVersion={hostVersion}
-                        compatibleWithHost={compatibleWithHost}
-                        onSortField={setSortField}
-                        onSortDir={setSortDir}
-                        onTimeRange={setTimeRange}
-                        onCompatibleWithHost={setCompatibleWithHost}
-                        t={t}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={css.catsToggle}
+                        icon={catsExpanded ? <IconChevronUpOutline14 size={14} /> : <IconChevronDownOutline14 size={14} />}
+                        aria-label={catsExpanded ? t('catsLess') : t('catsMore')}
+                        onClick={() => {
+                          const next = !catsExpanded
+                          if (catsStuck) setStuckExpanded(next)
+                          setCatsOpen(next)
+                        }}
                       />
                       </div>
                       {compatibleWithHost && typeof hostVersion === 'string' && (
