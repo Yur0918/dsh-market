@@ -917,6 +917,96 @@ function useMediaWide(): boolean {
  * actually overflows the clamp: a two-line description has nothing to
  * "expand", so no button beats a button that does nothing.
  */
+/**
+ * Description + screenshots, and the introduction's reading view.
+ *
+ * The card clamps its description to five lines, and the card itself is a
+ * `.map()` body with no hooks of its own — so this wrapper measures the clamp
+ * it holds, and only when something is actually hidden does hovering reveal
+ * the whole text.
+ *
+ * The reveal is a fixed-position panel rather than something inside the card:
+ * the space a card can give back is whatever its screenshots happen to occupy,
+ * and a card without screenshots has none — measured on this catalog, the
+ * first attempt showed exactly the same five lines, just cut at the box edge.
+ * The panel is pointer-events:none, so it can never take the pointer from the
+ * card underneath it.
+ */
+function CardBody({ text, children }: { text: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [clipped, setClipped] = useState(false)
+  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number; maxHeight: number } | null>(null)
+  const timer = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    const host = ref.current
+    if (host === null) return
+    const desc = host.querySelector<HTMLElement>(`.${css.descClamp}`)
+    if (desc === null) { setClipped(false); return }
+    const measure = () => setClipped(desc.scrollHeight > desc.clientHeight + 1)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(desc)
+    return () => observer.disconnect()
+  }, [text])
+  const close = useCallback(() => {
+    if (timer.current !== null) { window.clearTimeout(timer.current); timer.current = null }
+    setAnchor(null)
+  }, [])
+  const open = useCallback(() => {
+    const host = ref.current
+    if (host === null || !clipped) return
+    if (timer.current !== null) window.clearTimeout(timer.current)
+    // Long enough that sweeping across the grid does not flash a panel per card.
+    timer.current = window.setTimeout(() => {
+      timer.current = null
+      const card = host.parentElement?.getBoundingClientRect() ?? host.getBoundingClientRect()
+      // Starts where the card's own body starts — under the title row — so the
+      // name and the install button stay visible and clickable while it is open.
+      // Same column and same width, so it reads as this card continuing rather
+      // than as a box that appeared nearby; it grows down to the window's edge.
+      const top = host.getBoundingClientRect().top - 8
+      const room = window.innerHeight - top - 16
+      setAnchor({
+        left: card.left,
+        top,
+        width: card.width,
+        maxHeight: Math.max(120, Math.min(window.innerHeight * 0.6, room)),
+      })
+    }, 320)
+  }, [clipped])
+  useEffect(() => {
+    const card = ref.current?.parentElement
+    if (card === null || card === undefined) return undefined
+    card.addEventListener('pointerenter', open)
+    card.addEventListener('pointerleave', close)
+    card.addEventListener('pointerdown', close)
+    return () => {
+      card.removeEventListener('pointerenter', open)
+      card.removeEventListener('pointerleave', close)
+      card.removeEventListener('pointerdown', close)
+    }
+  }, [open, close])
+  // A fixed panel would hang over the grid while the page scrolls under it.
+  useEffect(() => {
+    if (anchor === null) return undefined
+    const onScroll = () => close()
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true })
+    return () => window.removeEventListener('scroll', onScroll, true)
+  }, [anchor, close])
+  return (
+    <div ref={ref} className={css.introScope}>
+      {children}
+      {anchor !== null && createPortal(
+        <div className={css.introPanel} style={{ left: anchor.left, top: anchor.top, width: anchor.width, maxHeight: anchor.maxHeight }} aria-hidden="true">
+          <p className={css.introBody}>{text}</p>
+        </div>,
+        document.body,
+      )}
+    </div>
+  )
+}
+
 function CardDesc({ text, t, lines = 5, className, textClassName }: {
   text: string
   t: Translate
@@ -5708,6 +5798,7 @@ export function MarketSection(props: MarketSectionProps) {
                       )}
           </div>
         </div>
+        <CardBody text={desc}>
         <CardDesc text={desc} t={t} />
         <CardShot plugin={p} onOpen={openLightbox} />
         {p.deprecated === true && (
@@ -5722,6 +5813,7 @@ export function MarketSection(props: MarketSectionProps) {
             </div>
           </div>
         )}
+        </CardBody>
         <div className={css.foot}>
           <div className={css.footTags}>
             <span
