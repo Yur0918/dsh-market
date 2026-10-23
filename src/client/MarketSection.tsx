@@ -2708,14 +2708,10 @@ export function MarketSection(props: MarketSectionProps) {
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false)
   /** Plugins that failed to install during a restore (replaces window.alert). */
   const [restoreErrors, setRestoreErrors] = useState<string[]>([])
-  // How many category pills fit in the two collapsed rows (measured once —
-  // the settings panel width is fixed); null = measuring render with all
-  // pills clamped, then slice so the chevron flows inline after the last one.
+  // How many category pills fit in ONE row (measured; the panel width is
+  // fixed). Collapsed shows that row; expanded shows them all. null = the
+  // measuring render, where every pill is painted so the widths can be read.
   const [visibleCats, setVisibleCats] = useState<number | null>(null)
-  /** Same idea as `visibleCats`, but how many fit in a single row — used to
-   *  shrink an expanded (2+ row) category list while the sticky header is
-   *  pinned during scroll, distinct from the two-row collapsed default. */
-  const [visibleCatsOneRow, setVisibleCatsOneRow] = useState<number | null>(null)
   const catsWrapRef = useRef<HTMLDivElement | null>(null)
   // Whether the sticky header is currently pinned to the top of the scroll
   // area. Tracked via a sentinel just above it rather than a scrollTop
@@ -5949,7 +5945,7 @@ export function MarketSection(props: MarketSectionProps) {
 
   const categories = data === null ? [] : Object.keys(data.categories)
 
-  useLayoutEffect(() => { setVisibleCats(null); setVisibleCatsOneRow(null) }, [lang, categories.length])
+  useLayoutEffect(() => { setVisibleCats(null) }, [lang, categories.length])
   // The sidebar page is often much wider than the settings dialog. A budget
   // measured once at the first (sometimes still-zero) width left a half-empty
   // category row on the wide panel — remeasure whenever the wrap's width
@@ -5965,7 +5961,6 @@ export function MarketSection(props: MarketSectionProps) {
       if (next < 80 || Math.abs(next - width) < 8) return
       width = next
       setVisibleCats(null)
-      setVisibleCatsOneRow(null)
     })
     observer.observe(el)
     return () => observer.disconnect()
@@ -5976,20 +5971,14 @@ export function MarketSection(props: MarketSectionProps) {
     if (el === null) return
     const chips = [...el.children].filter((c): c is HTMLElement => (c as HTMLElement).dataset?.chip === '1')
     if (chips.length === 0) return
+    // How many pills sit in the first row — the collapsed state is exactly one
+    // row, so this is the whole budget. It counts 「全部」 too, which is why the
+    // slice below gives the category list one slot fewer.
     const first = chips[0]!
-    const rowThreeTop = first.offsetTop + (first.offsetHeight + 6) * 2 - 3
-    let fits = 0
-    for (const chip of chips) { if (chip.offsetTop < rowThreeTop) fits += 1 }
-    // Reserve the tail slot of row two for the chevron itself.
-    setVisibleCats(fits >= chips.length ? fits : Math.max(1, fits - 1))
-    // Same measuring pass, one row's worth instead of two — used only while
-    // the sticky header is pinned during scroll (#188-adjacent request), to
-    // shrink an OPEN multi-row category list down to its first row without
-    // touching the user's actual open/closed choice.
     const rowTwoTop = first.offsetTop + first.offsetHeight + 6 - 3
-    let fitsOneRow = 0
-    for (const chip of chips) { if (chip.offsetTop < rowTwoTop) fitsOneRow += 1 }
-    setVisibleCatsOneRow(fitsOneRow >= chips.length ? fitsOneRow : Math.max(1, fitsOneRow - 1))
+    let fits = 0
+    for (const chip of chips) { if (chip.offsetTop < rowTwoTop) fits += 1 }
+    setVisibleCats(Math.max(1, fits))
   }, [visibleCats, data])
 
   useEffect(() => {
@@ -6036,6 +6025,26 @@ export function MarketSection(props: MarketSectionProps) {
    * (see stuckExpanded state). Leaving stuck falls back to `catsOpen`,
    * which still holds the pre-pin / in-pin user choice. */
   const catsExpanded = catsStuck ? stuckExpanded : catsOpen
+
+  /**
+   * The collapsed row must be exactly one row.
+   *
+   * Whatever the measuring pass predicts, the answer is only right once the
+   * chips are painted with the host's real font — an early pass measures
+   * narrower pills and lands one too many, which wraps the last one onto a
+   * second row. So: after a collapsed render, look at what actually happened
+   * and step the budget down until the row holds. A layout effect, so the
+   * correction lands before paint and the user never sees the two-row state.
+   */
+  useLayoutEffect(() => {
+    const el = catsWrapRef.current
+    if (el === null || visibleCats === null || catsExpanded) return
+    const chips = [...el.children].filter((c): c is HTMLElement => (c as HTMLElement).dataset?.chip === '1')
+    if (chips.length < 2) return
+    const top = Math.round(chips[0]!.getBoundingClientRect().top)
+    if (chips.every(chip => Math.round(chip.getBoundingClientRect().top) === top)) return
+    setVisibleCats(Math.max(1, chips.length - 1))
+  }, [visibleCats, catsExpanded, catsStuck])
 
   /**
    * A fresh install (hotUrls/hotNames) and a toggle/group action
@@ -6137,8 +6146,10 @@ export function MarketSection(props: MarketSectionProps) {
       data-dsh-market-fullscreen={tab === 'themes' && themesFullscreen ? 'true' : undefined}
     >
       <div className={css.head}>
+        <div className={css.headTop}>
+        <p className={css.sub}>{t('subtitle')}</p>
         <div className={css.titleRow}>
-          <MarketLogo size={18} style={{ flexShrink: 0 }} />
+          <MarketLogo size={16} style={{ flexShrink: 0 }} />
           <h2 className={css.title}>{t('nav')}</h2>
           {/* A quiet pointer back to the project — most visitors reach the
               market through a client that embeds it, with no other way to
@@ -6190,6 +6201,7 @@ export function MarketSection(props: MarketSectionProps) {
           )}
           </div>
         </div>
+        </div>
         {showSidebarTip && (
           <div className={css.sidebarTip}>
             <span>{t('sidebarTip')}</span>
@@ -6211,7 +6223,6 @@ export function MarketSection(props: MarketSectionProps) {
             {sidebarTipError !== null && <span>{sidebarTipError}</span>}
           </div>
         )}
-        <p className={css.sub}>{t('subtitle')}</p>
         <div className={css.tabs}>
           <button className={tab === 'discover' ? `${css.tab} ${css.on}` : css.tab} onClick={() => setTab('discover')}>{t('tabDiscover')}</button>
           {themeSnap !== null && <button className={tab === 'themes' ? `${css.tab} ${css.on}` : css.tab} onClick={() => setTab('themes')}>{t('tabThemes')}</button>}
@@ -6729,14 +6740,18 @@ export function MarketSection(props: MarketSectionProps) {
                           is already sliced to what fits. */}
                       <div ref={catsWrapRef} className={visibleCats === null && !catsExpanded ? `${css.catsWrap} ${css.catsCollapsed}` : css.catsWrap}>
                         {(() => {
-                          // Collapsed, the selected category is pulled to the front so it never hides.
-                          // Whenever collapsed (default, or auto-collapsed by the sticky
-                          // header going stuck — see catsExpanded / stuckExpanded), a stuck
-                          // header uses the one-row budget instead of the two-row one so an
-                          // already-open list that just got pinned shrinks further.
-                          const budget = catsStuck ? visibleCatsOneRow : visibleCats
+                          // Collapsed, the selected category is pulled to the front so it
+                          // never hides: the one row in view always contains the choice.
+                          const budget = visibleCats
                           const ordered = orderedCategories(categories, cat, catsExpanded, budget)
-                          const shown = catsExpanded || budget === null ? ordered : ordered.slice(0, Math.max(0, budget - 1))
+                          // Collapsed is a single row; expanded shows every category —
+                          // including while the header is pinned, where the chevron has
+                          // to keep working (a pinned list that ignores the click read as
+                          // broken). Pinning an already-open list collapses it because
+                          // catsExpanded follows stuckExpanded, not catsOpen.
+                          const shown = catsExpanded
+                            ? ordered
+                            : budget === null ? ordered : ordered.slice(0, Math.max(0, budget - 1))
                           return (
                             <>
                               <Pill data-chip="1" active={cat === 'all'} onClick={() => setCat('all')}>{t('all') + ' (' + formatCount(data!.count) + ')'}</Pill>
