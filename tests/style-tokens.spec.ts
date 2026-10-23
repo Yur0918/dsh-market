@@ -78,3 +78,31 @@ describe('the stylesheet does not ask for a blurred backdrop', () => {
     expect(offenders).toEqual([])
   })
 })
+
+/**
+ * Card chrome comes from the host's own card (#964).
+ *
+ * The host's plugin list and settings cards are drawn with one pair of tokens
+ * — `settings-card-fill` / `settings-card-stroke`, a 20px radius — and a 0.5px
+ * hairline. The market had invented a 1px `border-l2` box at 12px, which on a
+ * Retina display reads as a 2-device-pixel grey frame next to the host's
+ * hairline: the section looked pasted into the page rather than part of it.
+ *
+ * The tokens are asserted rather than the literal values because the point is
+ * that the market stops choosing its own card surface: the host can retune the
+ * card without this stylesheet following.
+ */
+describe('page-level cards wear the host card chrome', () => {
+  const card = RULES.find(rule => rule.selector === 'card')
+
+  it('fills and strokes the card with the host settings-card tokens', () => {
+    expect(card, 'the .card rule is missing').toBeDefined()
+    expect(card!.body).toContain('var(--dsw-alias-settings-card-fill')
+    expect(card!.body).toContain('var(--dsw-alias-settings-card-stroke')
+  })
+
+  it('uses the host radius scale and a hairline, not a bespoke box', () => {
+    expect(card!.body).toContain('border-radius:var(--dsw-radius-xl')
+    expect(card!.body).not.toMatch(/border:\s*1px/)
+  })
+})

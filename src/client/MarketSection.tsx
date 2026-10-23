@@ -5686,7 +5686,7 @@ export function MarketSection(props: MarketSectionProps) {
               : already
                 ? <span className={css.okState}>{t('alreadyInstalled')}</span>
                 : busy
-                  ? <Button variant="primary" size="sm" className={css.installBtn} disabled>{t('installing')}</Button>
+                  ? <Button variant="outline" size="sm" className={css.installBtn} disabled>{t('installing')}</Button>
                   : queued
                     ? (
                         <button type="button" className={css.cardBlockedMark} onClick={openOperations}>
@@ -5703,7 +5703,7 @@ export function MarketSection(props: MarketSectionProps) {
                       )
                     : (
                         <Button
-                          variant="primary"
+                          variant="outline"
                           size="sm"
                           className={css.installBtn}
                           disabled={busyUrl !== null || !envReady}
@@ -5860,7 +5860,7 @@ export function MarketSection(props: MarketSectionProps) {
                 ? done
                   ? <span className={css.okState}>{t('installedBadge')}</span>
                   : busy
-                    ? <Button variant="primary" size="sm" className={css.installBtn} disabled>{t('installing')}</Button>
+                    ? <Button variant="outline" size="sm" className={css.installBtn} disabled>{t('installing')}</Button>
                     : themeQueued
                       ? (
                           <button type="button" className={css.cardBlockedMark} onClick={openOperations}>
@@ -5877,7 +5877,7 @@ export function MarketSection(props: MarketSectionProps) {
                         )
                       : (
                           <Button
-                            variant="primary"
+                            variant="outline"
                             size="sm"
                             className={css.installBtn}
                             disabled={busyUrl !== null || !envReady}
@@ -5937,7 +5937,7 @@ export function MarketSection(props: MarketSectionProps) {
             ? <span className={css.okState}>{t('themeActive')}</span>
             : (
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
                   onClick={() => { try { props.theme.setTheme(id) } catch (error) { setInstallError(String(error)) } }}
                 >{t('themeApply')}</Button>
@@ -6138,7 +6138,7 @@ export function MarketSection(props: MarketSectionProps) {
     >
       <div className={css.head}>
         <div className={css.titleRow}>
-          <MarketLogo size={22} style={{ flexShrink: 0 }} />
+          <MarketLogo size={18} style={{ flexShrink: 0 }} />
           <h2 className={css.title}>{t('nav')}</h2>
           {/* A quiet pointer back to the project — most visitors reach the
               market through a client that embeds it, with no other way to
@@ -6205,15 +6205,6 @@ export function MarketSection(props: MarketSectionProps) {
         <div className={css.sub}>
           <span>{t('subtitle')}</span>
           <a className={css.submitLink} href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md" target="_blank" rel="noreferrer">{t('submitPlugin')}</a>
-          <span className={css.grow} />
-          <Button
-            variant="outline"
-            size="sm"
-            className={css.exportLogBtn}
-            icon={<IconDownloadOutline16 size={14} />}
-            disabled={exportState === 'busy'}
-            onClick={doExportLog}
-          >{exportState === 'busy' ? t('exportingLog') : t('exportLog')}</Button>
         </div>
         <div className={css.tabs}>
           <button className={tab === 'discover' ? `${css.tab} ${css.on}` : css.tab} onClick={() => setTab('discover')}>{t('tabDiscover')}</button>
@@ -6272,6 +6263,14 @@ export function MarketSection(props: MarketSectionProps) {
               })
             }}
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            className={css.exportLogBtn}
+            icon={<IconDownloadOutline16 size={14} />}
+            disabled={exportState === 'busy'}
+            onClick={doExportLog}
+          >{exportState === 'busy' ? t('exportingLog') : t('exportLog')}</Button>
         </div>
         {/* Backup & Restore and Diagnostics sit under Advanced rather than as
             their own top-level tabs — most users never need either, and having
@@ -7623,13 +7622,13 @@ export function MarketSection(props: MarketSectionProps) {
                                   : updatedNames.includes(name)
                                     ? <span className={`${css.metaTag} ${css.metaTagOk}`}>{act?.state === 'live' ? t('updatedLive') : t('updated')}</span>
                                     : updatingName === name
-                                      ? <Button variant="primary" size="sm" className={css.warnBtn} disabled>{t('updating')}</Button>
+                                      ? <Button variant="outline" size="sm" className={css.warnBtn} disabled>{t('updating')}</Button>
                                       : status !== undefined && generation && status.latest != null
                                         ? <span className={css.metaTag} title={t('hostUpdateHint')}>{t('hostUpdateReady').replace('{0}', status.latest)}</span>
                                       : status && status.updateAvailable
                                         ? (
                                             <Button
-                                              variant="primary"
+                                              variant="outline"
                                               size="sm"
                                               className={css.warnBtn}
                                               disabled={updatingName !== null}
