@@ -6149,7 +6149,7 @@ export function MarketSection(props: MarketSectionProps) {
         <div className={css.headTop}>
         <p className={css.sub}>{t('subtitle')}</p>
         <div className={css.titleRow}>
-          <MarketLogo size={16} style={{ flexShrink: 0 }} />
+          <MarketLogo size={18} style={{ flexShrink: 0 }} />
           <h2 className={css.title}>{t('nav')}</h2>
           {/* A quiet pointer back to the project — most visitors reach the
               market through a client that embeds it, with no other way to

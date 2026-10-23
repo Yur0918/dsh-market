@@ -12,7 +12,7 @@
    repeating it as a heading was a third title for the same thing. */
 .headTop{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;min-width:0}
 .headTop > .sub{min-width:0}
-.title{font-size:12px;line-height:18px;font-weight:500;margin:0;white-space:nowrap;color:var(--dsw-alias-label-secondary,#5c6570)}
+.title{font-size:14px;line-height:20px;font-weight:600;margin:0;white-space:nowrap;color:var(--dsw-alias-label-primary,#1f2328)}
 .sub{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8b93a1);margin:0}
 .sidebarTip{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,#5c6570)}
 .submitLink{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary,#8b93a1);text-decoration:none;white-space:nowrap}
