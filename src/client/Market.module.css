@@ -543,22 +543,51 @@
 .actWhy{margin-top:2px;color:var(--dsw-alias-label-secondary,#6b7280)}
 .loading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px;color:var(--dsw-alias-label-secondary,#9ca3af);font-size:13px}
 .spin{display:inline-flex;flex-shrink:0;color:var(--dsw-alias-brand-primary,#4f6ef7);animation:sp .8s linear infinite}
-/* Brand loading: the loose block plugs itself into the grid's empty corner
-   and springs back out. It is the mark's own story — a plugin arriving —
-   rather than a generic rotation, and it stays legible at 22px because the
-   moving part travels a full block-width against a still grid.
-   `transform-box: fill-box` makes the offsets below user units of THIS rect,
-   so they are the same (+1.28, -1.27) the static mark is drawn with. */
+/* The mark's two motions, on one clock.
+   The grid breathes along the diagonal — `--dshm-wave` is each cell's
+   row + column — and the plug arrives behind that wave, seats in the corner
+   the wave has just left, holds, then withdraws before the next pass. One
+   duration for both is the point: the block has to read as following the
+   wave, and two independently timed loops drift apart the moment either is
+   retuned. `transform-box: fill-box` makes the offsets below user units of
+   THIS rect, so they are the same (+1.28, -1.27) the static mark is drawn
+   with. Both are opacity and transform only: no filter, no layout. */
 .logoMark{display:inline-flex;flex-shrink:0;color:var(--dsw-alias-brand-primary,#4f6ef7)}
-.logoPlug{transform-box:fill-box;transform-origin:50% 50%;animation:dshmPlug 1.5s cubic-bezier(.4,0,.2,1) infinite}
-@keyframes dshmPlug{
-  0%,12%{transform:rotate(9deg)}
-  45%,62%{transform:translate(-1.28px,1.27px) rotate(0)}
-  95%,100%{transform:rotate(9deg)}
+.logoCell,.logoPlug,.logoPlugAmbient{--dshm-cycle:2.8s}
+/* The loading form is the same gesture at a working pace. It is reporting that
+   something is happening, and the block rests for roughly a third of a cycle —
+   at the ambient 2.8s that rest reads as stuck. Only the pace differs; phases,
+   geometry and curve are shared, so the two forms cannot drift apart in shape. */
+.logoMark .logoCell,.logoMark .logoPlug{--dshm-cycle:2s}
+.logoCell{animation:dshmMarkWave var(--dshm-cycle) cubic-bezier(.4,0,.2,1) infinite;animation-delay:calc(var(--dshm-wave,0) * 110ms)}
+.logoPlug,.logoPlugAmbient{transform-box:fill-box;transform-origin:50% 50%;animation:dshmMarkPlug var(--dshm-cycle) cubic-bezier(.4,0,.2,1) infinite}
+/* The dip is short on purpose. A long one (a quarter of the cycle, which is
+   what a plain "breathing" loop wants) leaves five of the eight cells below
+   full at any instant, and at 18px the whole grid greys out together — it
+   reads as a loading skeleton, not as a wave. Ten percent of the cycle per
+   cell, stepped 110ms, keeps the band to about two cells wide, so the eye
+   follows a passing shadow and most of the grid stays ink. */
+@keyframes dshmMarkWave{
+  0%,100%{opacity:1}
+  6%{opacity:.5}
+  16%{opacity:1}
 }
-/* Motion is the whole signal here, so with it suppressed the block still has
-   to say "working" — it breathes in place instead of sitting inert. */
+/* The block arrives behind the wave: the empty slot is `wave` 2, which dips at
+   ~15% and is lit again by ~25%, and the block settles at 30%. It overshoots by
+   a tenth of a block at 22% so it lands in the corner rather than stopping on
+   it, then holds until 62% and withdraws before the next pass. */
+@keyframes dshmMarkPlug{
+  0%,8%{transform:rotate(9deg)}
+  22%{transform:translate(-1.35px,1.34px) rotate(0)}
+  30%,62%{transform:translate(-1.28px,1.27px) rotate(0)}
+  76%,100%{transform:rotate(9deg)}
+}
+/* A reader who asked for less motion gets a still mark — except in the loading
+   state, where motion is the signal and suppressing it would leave nothing to
+   say "working". There the block keeps its drawn position (the rect's own
+   transform attribute, which a running animation outranks) and breathes. */
 @media (prefers-reduced-motion: reduce){
+  .logoCell,.logoPlugAmbient{animation:none}
   .logoPlug{animation:dshmPlugFade 1.5s ease-in-out infinite}
   .spin{animation:dshmPlugFade 1.5s ease-in-out infinite}
 }

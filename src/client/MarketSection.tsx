@@ -1261,24 +1261,51 @@ export function resetMarketPortalHost(): void {
  * follows the active theme. Mirrors the settings-nav glyph used for the
  * "market" section id — both now draw the geometry in market-mark.ts, so the
  * nav entry and the section it opens cannot drift apart.
+ *
+ * Two animated forms, differing in what they are for rather than in looks:
+ *
+ * - `animated` — the loading state. Motion is the whole signal, so under
+ *   `prefers-reduced-motion` it still moves, just without displacement.
+ * - `ambient` — the section's own heading mark. Decoration, so the same
+ *   preference stops it dead.
+ *
+ * Both draw the one timeline in the stylesheet: the grid breathes along the
+ * diagonal and the block rides in behind that wave. They share `--dshm-cycle`
+ * so the block cannot arrive after the wave it is supposed to follow.
  */
-export function MarketLogo({ size = 16, style, animated = false }: { size?: number; style?: CSSProperties; animated?: boolean }) {
+export function MarketLogo({ size = 16, style, animated = false, ambient = false }: {
+  size?: number
+  style?: CSSProperties
+  animated?: boolean
+  ambient?: boolean
+}) {
+  const moving = animated || ambient
   return (
     <svg width={size} height={size} viewBox={`0 0 ${MARK_VIEW_BOX} ${MARK_VIEW_BOX}`} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style={style}>
       <g fill="currentColor">
         {MARK_GRID_BLOCKS.map(block => (
-          <rect key={`${block.x},${block.y}`} x={block.x} y={block.y} width={MARK_BLOCK_SIZE} height={MARK_BLOCK_SIZE} rx={MARK_BLOCK_RADIUS} />
+          <rect
+            key={`${block.x},${block.y}`}
+            className={moving ? css.logoCell : undefined}
+            style={moving ? { '--dshm-wave': block.wave } as CSSProperties : undefined}
+            x={block.x} y={block.y} width={MARK_BLOCK_SIZE} height={MARK_BLOCK_SIZE} rx={MARK_BLOCK_RADIUS}
+          />
         ))}
       </g>
       {/* The block being plugged in: OUTSIDE the grid's empty corner, offset
           (+1.28, -1.27) and tilted 9deg, exactly as in assets/logo.svg. The
           earlier icon sat it neatly in the empty slot, which reads as one
           crooked tile rather than a block arriving — the whole idea of the
-          mark, and the reason it no longer matched the GitHub logo. */}
+          mark, and the reason it no longer matched the GitHub logo.
+
+          The tilt stays a presentation attribute even in the animated forms:
+          a CSS animation outranks it while running, and when the animation is
+          suppressed (reduced motion) the attribute is what leaves the block in
+          its drawn position instead of sitting square in the corner. */}
       <rect
-        className={animated ? css.logoPlug : undefined}
+        className={animated ? css.logoPlug : ambient ? css.logoPlugAmbient : undefined}
         x={MARK_PLUG_BLOCK.x} y={MARK_PLUG_BLOCK.y} width={MARK_BLOCK_SIZE} height={MARK_BLOCK_SIZE} rx={MARK_BLOCK_RADIUS} fill="currentColor"
-        transform={animated ? undefined : `rotate(${MARK_PLUG_BLOCK.degrees} ${MARK_PLUG_BLOCK.originX} ${MARK_PLUG_BLOCK.originY})`}
+        transform={`rotate(${MARK_PLUG_BLOCK.degrees} ${MARK_PLUG_BLOCK.originX} ${MARK_PLUG_BLOCK.originY})`}
       />
     </svg>
   )
@@ -6241,7 +6268,7 @@ export function MarketSection(props: MarketSectionProps) {
         <div className={css.headTop}>
         <p className={css.sub}>{t('subtitle')}</p>
         <div className={css.titleRow}>
-          <MarketLogo size={18} style={{ flexShrink: 0 }} />
+          <MarketLogo size={18} ambient style={{ flexShrink: 0 }} />
           <h2 className={css.title}>{t('nav')}</h2>
           {/* A quiet pointer back to the project — most visitors reach the
               market through a client that embeds it, with no other way to
