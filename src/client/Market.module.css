@@ -502,7 +502,7 @@
 .titleRow{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px}
 /* The update buttons wrap as one group: in a narrow settings panel they
    drop below the heading together instead of squeezing it into two lines. */
-.titleActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;margin-left:auto;flex-shrink:0}
+.titleActions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px 10px;margin-left:auto;flex:0 1 auto;min-width:0}
 .titleActions:empty{display:none}
 .titleActions>*{white-space:nowrap;flex-shrink:0}
 /* Sits beside the heading so a screenshot of the page carries the
